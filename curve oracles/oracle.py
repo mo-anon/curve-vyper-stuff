@@ -3,40 +3,42 @@ from ape import chain, networks
 import math
 
 
+# fork eth mainnet
 ape.networks.parse_network_choice('ethereum:mainnet-fork').__enter__()
 
 
+# contract addresses 
 price_oracle_contract = ape.Contract('0xc1793A29609ffFF81f10139fa0A7A444c9e106Ad')
 TRICRYPTO = ["0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B", "0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4"]
 STABLESWAP = ["0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E", "0x390f3595bCa2Df7d23783dFd126427CCeb997BF4"]
 STAKEDSWAP = ape.Contract("0x21E27a5E5513D6e65C4f830167390997aA84843a")
 WSTETH = ape.Contract("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")
-
-
-
-tricryptoUSDC = ape.Contract("0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B") #TRICTYPTO[0]
-tricryptoUSDT = ape.Contract("0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4") #TRICTYPTO[1]
-stableswap0 = ape.Contract("0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E")
-stableswap1 = ape.Contract("0x390f3595bCa2Df7d23783dFd126427CCeb997BF4")
 stable_agg = ape.Contract("0x18672b1b0c623a30089A280Ed9256379fb0E4E62")
 
+
+# aggregate needed variables
 N_POOLS = price_oracle_contract.N_POOLS()
 last_timestamp = price_oracle_contract.last_timestamp()
 block_timestamp = chain.provider.get_block("latest").timestamp
 TVL_MA_TIME = price_oracle_contract.TVL_MA_TIME()
 
 
+# empty lists to store tvls in 
 last_tvl = []
 last_tvl_new = []
 
 
+#EMA TVLS
+
+# last_tvl stored in last_tvl list. this is used if last_timestamp < block_timestamp
 for i in range (0, N_POOLS):
     x = price_oracle_contract.last_tvl(i)
     last_tvl.append(x)
 
 
-
+# calculates new last_tvl and stores it in last_tvl_new list.
 if last_timestamp < block_timestamp:
+    # alpha is a smoothing factory for the tvls
     alpha = float(math.exp(-(block_timestamp - last_timestamp) * 10**18 / TVL_MA_TIME))
 
     for i in range(0, N_POOLS):
@@ -47,6 +49,7 @@ if last_timestamp < block_timestamp:
 
 
 
+# PRICE
 
 weighted_price = 0
 weights = 0
