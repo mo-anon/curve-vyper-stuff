@@ -76,7 +76,7 @@ $$\text{last_tvl}_i = \frac{tvl_i * (10^{18} - \alpha) + \text{last_tvl}_i * \al
 
 ## **Calculate Raw Price**
 
-This function requires `tvl´ (which was calculated in the step above) and `agg_price` ((which essential is `STABLESWAP_AGGREGATOR.price()`) as input to calculate the raw price of the collateral.
+This function requires `tvl` (which was calculated in the step above) and `agg_price` ((which essential is `STABLESWAP_AGGREGATOR.price()`) as input to calculate the raw price of the collateral.
 `_raw_price()` calculates the raw price of the collateral. The function requires the inputs `tvls` (from `_ema_tvl()`) and `agg_price` (from `STABLESWAP_AGGREGATOR.price()`).
 
 ??? quote "`_raw_price(tvls: uint256[N_POOLS], agg_price: uint256) -> uint256:`"
