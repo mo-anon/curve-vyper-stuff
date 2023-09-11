@@ -1,5 +1,8 @@
 # @version ^0.3.7
 
+# count start at index 0 -> first added market is controllers(0)
+
+
 
 interface Controller:
     def amm() -> address: view
@@ -27,11 +30,13 @@ struct Market:
     collateral_token: address
     oracle_contract: address
 
-market: public(HashMap[uint256, Market])
-n_markets: public(int128)
+
+n_markets: public(uint256)
 
 controllers: public(address[999])
-count: public(int128)
+count: public(uint256)
+
+MAX_MARKETS: constant(uint256) = 20
 
 event AddMarket:
     controller: address
@@ -76,7 +81,6 @@ def get_monetary_policy(_controller: address) -> address:
     return Controller(_controller).monetary_policy()    
 
 
-
 @external
 @view
 def get_debt(_controller: address, _user: address) -> uint256:
@@ -84,8 +88,23 @@ def get_debt(_controller: address, _user: address) -> uint256:
 
 @external
 @view
-def get_total_debt(_controller: address, _user: address) -> uint256:
+def get_total_debt(_controller: address) -> uint256:
     return Controller(_controller).total_debt()
+
+@external
+@view
+def total_debt_markets() -> uint256:
+    n: uint256 = self.count
+    sum: uint256 = 0
+
+    for i in range(MAX_MARKETS):
+        if i == n:
+            break
+        c: address = self.controllers[i]
+        debt: uint256 = Controller(c).total_debt()
+        sum += debt
+
+    return sum
 
 @external
 @view
@@ -114,17 +133,26 @@ def get_n_loans(_controller: address) -> uint256:
 def get_admin_fees(_controller: address) -> uint256:
     return Controller(_controller).admin_fees()
 
+
 # ------ #
+
 @external
 @view
 def get_total_admin_fees() -> uint256:
+    n: uint256 = self.count
     sum: uint256 = 0
 
-    for i in range(10):
-        fee: uint256 = Controller(self.controllers[i]).admin_fees()
+    for i in range(MAX_MARKETS):
+        if i == n:
+            break
+        c: address = self.controllers[i]
+        fee: uint256 = Controller(c).admin_fees()
         sum += fee
 
     return sum
+
+
+
 
 
 # --- MONETARY POLICY --- #
@@ -139,7 +167,7 @@ def get_rate(_monetary_policy: address) -> uint256:
 # ---------- ADDING MARKETS ---------- #
 
 @external
-def add_market_from_controller(_id: int128, _controller: address):
+def add_market_from_controller(_controller: address):
     """
     @notice Add market to the MetaMarket
     @dev only callable by the admin
@@ -152,7 +180,8 @@ def add_market_from_controller(_id: int128, _controller: address):
     ct: address = Controller(_controller).collateral_token()
     o: address = AMM(a).price_oracle_contract()
 
-    self.controllers[_id] = c
+    self.controllers[self.count] = c
+    self.count += 1
 
     new: Market = Market({controller: c, amm: a, monetary_policy: mp, collateral_token: ct, oracle_contract: o})
 
@@ -161,7 +190,7 @@ def add_market_from_controller(_id: int128, _controller: address):
 
 @external
 @view
-def get_n_markets() -> int128:
+def get_n_markets() -> uint256:
     return self.n_markets
 
 
