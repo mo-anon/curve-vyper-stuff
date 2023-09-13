@@ -1,22 +1,32 @@
 # @version ^0.3.7
 
-# count start at index 0 -> first added market is controllers(0)
-
-
 
 interface Controller:
     def amm() -> address: view
     def collateral_token() -> address: view
-    def monetary_policy() -> address: view
     def debt(user: address) -> uint256: view
+    def loan_exists(user: address) -> bool: view # aggretage across all markets?
     def total_debt() -> uint256: view
     def health(user: address) -> uint256: view
+    def amm_price() -> uint256: view
     def user_prices(user: address) -> uint256[2]: view
     def user_state(user: address) -> uint256[4]: view
     def admin_fees() -> uint256: view
     def n_loans() -> uint256: view
+    def monetary_policy() -> address: view
 
 interface AMM:
+    def coins(i: uint256) -> address: view
+    def price_oracle() -> uint256: view
+    def read_user_tick_number(user: address) -> int256[2]: view
+    def A() -> uint256: view
+    def fee() -> uint256: view
+    def admin_fee() -> uint256: view
+    def active_band() -> int256: view
+    def min_band() -> int256: view
+    def max_band() -> int256: view
+    def admin_fees_x() -> uint256: view
+    def admin_fees_y() -> uint256: view 
     def price_oracle_contract() -> address: view
 
 interface MonetaryPolicy:
@@ -31,13 +41,6 @@ struct Market:
     oracle_contract: address
 
 
-n_markets: public(uint256)
-
-controllers: public(address[999])
-count: public(uint256)
-
-MAX_MARKETS: constant(uint256) = 20
-
 event AddMarket:
     controller: address
     amm: address
@@ -47,6 +50,16 @@ event AddMarket:
 
 event TransferOwnership:
     admin: address
+
+
+
+loans_in_market: public(address[MAX_MARKETS])
+controllers: public(address[999])
+count: public(uint256)
+
+MAX_MARKETS: constant(uint256) = 20
+n_markets: public(uint256)
+
 
 admin: public(address)
 
@@ -91,20 +104,6 @@ def get_debt(_controller: address, _user: address) -> uint256:
 def get_total_debt(_controller: address) -> uint256:
     return Controller(_controller).total_debt()
 
-@external
-@view
-def total_debt_markets() -> uint256:
-    n: uint256 = self.count
-    sum: uint256 = 0
-
-    for i in range(MAX_MARKETS):
-        if i == n:
-            break
-        c: address = self.controllers[i]
-        debt: uint256 = Controller(c).total_debt()
-        sum += debt
-
-    return sum
 
 @external
 @view
@@ -124,7 +123,7 @@ def get_user_state(_controller: address, _user: address) -> uint256[4]:
 
 @external
 @view
-def get_n_loans(_controller: address) -> uint256:
+def get_loans(_controller: address) -> uint256:
     return Controller(_controller).n_loans()
 
 
@@ -134,7 +133,8 @@ def get_admin_fees(_controller: address) -> uint256:
     return Controller(_controller).admin_fees()
 
 
-# ------ #
+
+# --- AGGREGATE FUNCTIONS --- #
 
 @external
 @view
@@ -152,7 +152,49 @@ def get_total_admin_fees() -> uint256:
     return sum
 
 
+@external
+@view
+def total_debt_markets() -> uint256:
+    n: uint256 = self.count
+    sum: uint256 = 0
 
+    for i in range(MAX_MARKETS):
+        if i == n:
+            break
+        c: address = self.controllers[i]
+        debt: uint256 = Controller(c).total_debt()
+        sum += debt
+
+    return sum
+
+
+@external
+@view
+def get_total_loans() -> uint256:
+    n: uint256 = self.count
+    sum: uint256 = 0
+
+    for i in range(MAX_MARKETS):
+        if i == n:
+            break
+        c: address = self.controllers[i]
+        loans: uint256 = Controller(c).n_loans()
+        sum += loans
+
+    return sum
+
+
+# --- AMM --- #
+
+@external
+@view
+def get_admin_fees_x(_amm: address) -> uint256:
+    return AMM(_amm).admin_fees_x()
+
+@external
+@view
+def get_admin_fees_y(_amm: address) -> uint256:
+    return AMM(_amm).admin_fees_y() 
 
 
 # --- MONETARY POLICY --- #
@@ -170,7 +212,8 @@ def get_rate(_monetary_policy: address) -> uint256:
 def add_market_from_controller(_controller: address):
     """
     @notice Add market to the MetaMarket
-    @dev only callable by the admin
+    @dev only callable admin
+    @param _controller Controller address
     """
     assert msg.sender == self.admin
     
